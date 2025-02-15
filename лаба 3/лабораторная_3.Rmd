@@ -1,0 +1,233 @@
+---
+title: "лабораторная 3"
+author: "Мишнёв В.П."
+date: "2024-11-24"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(openxlsx)
+library(EnvStats)
+
+```
+
+```{r}
+data_emissions <- read.xlsx("C:\\Users\\Владислав\\Downloads\\Вариант33_Б22-901_Мишнев.xlsx", sheet = 1)
+data_wind_rose <- read.xlsx("C:\\Users\\Владислав\\Downloads\\Вариант33_Б22-901_Мишнев.xlsx", sheet = 3)
+data_fine <- read.xlsx("C:\\Users\\Владислав\\Downloads\\Вариант33_Б22-901_Мишнев.xlsx", sheet = 2)[,1:4]
+data_cost <- read.xlsx("C:\\Users\\Владислав\\Downloads\\Вариант33_Б22-901_Мишнев.xlsx", sheet = 2)[, c(1, 5:6)]
+
+```
+
+```{r}
+costs <- as.data.frame(matrix(nrow  = 5, ncol = 1))
+colnames(costs) <-  "Капитал. затраты, млн руб"
+rownames(costs) <- c( "Диоксид углерода", "Фосген", "Этиленоксид", "Бромметан", "Диоксид серы")
+for(i in 1:5){
+   costs[i,1] <- (data_cost[i,2] + 5*data_cost[i, 3])/1000
+}
+
+pander::pander(costs,caption = "Капитальные затраты на очистное оборудование", style = "simple")
+```
+
+```{r}
+tests <- as.data.frame(matrix(nrow  = 5, ncol = 4))
+colnames(tests) <-  c("Нормальное", "Гамма", "Экспоненциальное", "Вейбулл")
+rownames(tests) <- c( "Диоксид углерода", "Фосген", "Этиленоксид", "Бромметан", "Диоксид серы")
+
+for(i in 1:5){
+  emissions <- data_emissions[,i+1]
+ 
+  
+  tests[i, 1] <- gofTest(emissions, dist = "norm", test = "ks")$p.value
+  tests[i, 2] <- gofTest(emissions, dist = "gamma", test = "ks")$p.value
+  tests[i, 3] <- gofTest(emissions, dist = "exp", test = "ks")$p.value
+  tests[i, 4] <- gofTest(emissions, dist = "weibul", test = "ks")$p.value
+}
+
+
+
+
+pander::pander(tests,caption = "P-value на соответствие значений какому-либо из законов", style = "simple",  digits = 4)
+```
+
+```{r, fig.height = 4, fig.width=8}
+#графики функций распределения для Бромметана
+ECDF <- ecdf(data_emissions$Бромметан)
+meaning <- seq(from = min(data_emissions$Бромметан,na.rm = TRUE), to = max(data_emissions$Бромметан,na.rm = TRUE), length.out = length(data_emissions$Бромметан))
+Fx_gamma_theoretic <- pgamma(q = meaning, shape = 5.0142713, scale = 0.4032362)
+
+plot(ECDF, col = "blue")
+lines(x = meaning, y = Fx_gamma_theoretic, col = "red", lty = 2, lwd = 2)
+legend(x = "bottomright", legend = c("Эмпирическое распределение Бромметана", "Теоретическое гамма распределение"), col = c("blue", "red"), lty = c(1,2), lwd = 2)
+
+#графики плотности распределений Бромметана
+
+Dens <-  density(data_emissions$Бромметан)
+Dens_theoretic_gamma <- dgamma(x = meaning, shape = 5.0142713, scale = 0.4032362)
+
+hist(x = data_emissions$Бромметан, breaks = "Scott", freq = FALSE )
+lines(Dens, col = "red" , lwd = 2)
+lines(x = meaning, y = Dens_theoretic_gamma, col = "blue", lwd = 2)
+legend(x = "topright", legend = c("Гистограмма распределения Бромметана", "Эмпирическая плотность распределение Бромметана", "Теоретическая плотность гамма распределение"),col = c("grey", "red", "blue"), lty = c(1, 1,2), lwd = 2, cex = 0.7)
+
+#графики функций распределения для диоксида серы
+
+ECDF <- ecdf(data_emissions$Диоксид.серы)
+meaning <- seq(from = min(data_emissions$Диоксид.серы,na.rm = TRUE), to = max(data_emissions$Диоксид.серы,na.rm = TRUE), length.out = length(data_emissions$Диоксид.серы))
+Fx_weibull_theoretic <- pweibull(q = meaning, shape = 2.12614644, scale = 0.06008531)
+
+
+plot(ECDF, col = "blue")
+lines(x = meaning, y = Fx_weibull_theoretic, col = "red", lty = 2, lwd = 2)
+legend(x = "bottomright", legend = c("Эмпирическое распределение Диоксида серы", "Теоретическое распределение Вейбулла"), col = c("blue", "red"), lty = c(1,2), lwd = 2)
+
+#графики плотности распределений Диоксида серы
+
+Dens <-  density(data_emissions$Диоксид.серы)
+Dens_theoretic_weibull <- dweibull(x = meaning, shape = 2.12614644, scale = 0.06008531)
+
+hist(x = data_emissions$Диоксид.серы, breaks = "Scott", freq = FALSE )
+lines(Dens, col = "red" , lwd = 2)
+lines(x = meaning, y = Dens_theoretic_weibull, col = "blue", lwd = 2)
+legend(x = "topright", legend = c("Гистограмма распределения Диоксида серы", "Эмпирическая плотность распределение Диоксида серы", "Теоретическая плотность распределения Вейбулла"), col = c("grey", "red", "blue"), lty = c(1, 1,2), lwd = 2, cex = 0.7)
+```
+
+```{r}
+#здесь узнаём коэффициенты для распределений для бромметана и диоксида серы
+gofTest(data_emissions$Бромметан, dist = "gamma")
+gofTest(data_emissions$Диоксид.серы, dist = "weibul")
+```
+
+```{r}
+#В случае невозможности отнесения распределения к известным видам — сформировать эмпирическую функцию распределения
+
+plot(ecdf(data_emissions$Диоксид.углерода), col = "blue", lwd = 2, main = "Эмпирическая функция распределения Диоксида углерода")
+plot(ecdf(data_emissions$Фосген), col = "blue", lwd = 2, main = "Эмпирическая функция распределения Фосгена")
+plot(ecdf(data_emissions$Этиленоксид), col = "blue", lwd = 2, main = "Эмпирическая функция распределения Этиленоксида")
+
+
+```
+
+```{r, fig.width=8}
+#Оценить вероятность суточного штрафа каждого вида вредных веществ, при постоянном гипотетическом условии наиболее неблагоприятного ветра.
+table <- as.data.frame(matrix(nrow  = 3, ncol = 5))
+colnames(table) <-  c("Диоксид углерода", "Фосген", "Этиленоксид", "Бромметан", "Диоксид серы")
+rownames(table) <- c( "Вероятность", "Совокупный штраф, млн руб", "Капитальные вложения, млн руб")
+
+for(i in 1:5){
+  emissions = data_emissions[,i+1]
+  emissions = emissions*0.9
+  
+  l <- emissions > data_fine[i, 3]
+
+  numrow <- sum(l)
+  table[1,i] <- numrow/3653
+  table[2,i] <- table[1,i]*1825*data_fine[i,4]/1000
+  table[3,i] <- costs[i, 1]
+  
+  
+}
+pander::pander(table,caption = "Таблица деняг", style = "simple")
+#убираем бромметан
+```
+
+```{r}
+data_emissions <- data_emissions[,-5]
+data_fine <- data_fine[-4, ]
+```
+
+```{r}
+#для оставшихся веществ — составить формулу полной вероятности получения штрафа при условии разной интенсивности разных направлений ветров
+intense <- c(0, 0.25, 0.5, 0.9, 0.75, 0.4, 0.1, 0)
+
+P_fines <- c(59/365, 51/365, 67/365,64/365,11/365, 43/365, 42/365, 28/365)
+
+table <- as.data.frame(matrix(nrow  = 3, ncol = 4))
+colnames(table) <-  c("Диоксид углерода", "Фосген", "Этиленоксид","Диоксид серы")
+rownames(table) <- c( "Вероятность", "Совокупный штраф, млн руб", "Капитальные вложения, млн руб")
+
+for(i in 1:4){
+  emissions = data_emissions[,i+1]
+  chance <- 0
+  
+  
+  for(j in 1:8){
+    change_emissions <- emissions*intense[j]
+    chance <- chance + (sum(change_emissions > data_fine[i, 3])/3653)*P_fines[j]
+  }
+  
+  table[1,i] <- chance
+  table[2,i] <- table[1,i]*1825*data_fine[i,4]/1000
+  table[3,i] <- costs[i, 1]
+  
+  
+}
+pander::pander(table,caption = "Таблица деняг", style = "simple")
+
+```
+
+```{r}
+#подсчёт общего штрафа для бромметана
+intense <- c(0, 0.25, 0.5, 0.9, 0.75, 0.4, 0.1, 0)
+
+P_fines <- c(59/365, 51/365, 67/365,64/365,11/365, 43/365, 42/365, 28/365)
+
+  emissions = data_emissions$Бромметан
+  chance <- 0
+  
+  
+  for(j in 1:8){
+    change_emissions <- emissions*intense[j]
+    chance <- chance + (sum(change_emissions > data_fine[4, 3])/3653)*P_fines[j]
+  }
+  
+  print(chance)
+  print(0.0003875107*1825*data_fine[4,4]/1000)
+  
+  
+
+
+```
+
+```{r}
+#считаем вероятность с наиболее неблагоприятным ветром для веществ распределённых по какому-то закону
+weibull_parametrs <- eweibull(data_emissions[,6], method = "mle")
+probabilities <- 1 - pweibull(0.05/0.9,shape = weibull_parametrs[["parameters"]][["shape"]], scale = weibull_parametrs[["parameters"]][["scale"]])
+print(probabilities)
+
+gamma_parametrs <- egamma(data_emissions[,5], method = "mle")
+probabilities <- 1 - pgamma(5/0.9,shape = gamma_parametrs[["parameters"]][["shape"]], scale = gamma_parametrs[["parameters"]][["scale"]])
+print(probabilities)
+
+```
+```{r}
+#считаем полную вероятность для бромметана и диоксида серы
+intense <- c(0, 0.25, 0.5, 0.9, 0.75, 0.4, 0.1, 0)
+
+P_fines <- c(59/365, 51/365, 67/365,64/365,11/365, 43/365, 42/365, 28/365)
+
+  
+  
+  probss <- numeric(8)
+for (i in 1 : 8){
+  probss[i] <- 1 - pweibull(0.05/intense[i],shape = weibull_parametrs[["parameters"]][["shape"]], scale = weibull_parametrs[["parameters"]][["scale"]])
+}
+  print(sum(probss * P_fines))
+
+  for (i in 1 : 8){
+  probss[i] <- 1 - pgamma(5/intense[i],shape = gamma_parametrs[["parameters"]][["shape"]], scale = gamma_parametrs[["parameters"]][["scale"]])
+}
+  print(sum(probss * P_fines))
+```
+```{r}
+0.4289157*1825*data_fine[5,4]/1000
+0.002163142*1825*data_fine[4,4]/1000
+0.09445924*1825*data_fine[5,4]/1000
+0.0003875107*1825*data_fine[4,4]/1000
+```
+

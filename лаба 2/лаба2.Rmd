@@ -1,0 +1,810 @@
+---
+title: "лаба2"
+author: "Мишнёв В.П."
+date: "2024-12-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+set.seed(100)
+```
+
+```{r}
+load("C:/Users/Владислав/Downloads/Вариант33_Б22-901_Мишнев.RData")
+colnames(Result)[3] <- "group_age"
+```
+
+```{r}
+#найдём оценки марок пива
+
+df <- Result
+zeros <- rep(0, 15000)
+res <- data.frame(Oxota = zeros,
+                 Guiness = zeros,
+                 Bud = zeros,
+                 IPA = zeros)
+
+for(i in 1:5){
+  df[i+15] = abs(df[i+5]-df[i+15])*df[i+10]
+  df[i+20] = abs(df[i+5]-df[i+20])*df[i+10]##идеальное значение - значение для продукта
+  df[i+25] = abs(df[i+5]-df[i+25])*df[i+10]
+  df[i+30] = abs(df[i+5]-df[i+30])*df[i+10]
+}
+
+for(i in 1:5){
+  res[1] <- res[1] + df[i+15]
+  res[2] <- res[2] + df[i+20]
+  res[3] <- res[3] + df[i+25]
+  res[4] <- res[4] + df[i+30]
+} 
+```
+
+```{r}
+koef <- as.data.frame(matrix(nrow  = 3, ncol = 4))
+colnames(koef) <- c("Oxota", "Guiness", "Bud", "IPA")
+rownames(koef) <- c("Стандартное отклонение", "Медиана", "Среднее")
+for (i in 1:4){
+  koef[1,i] <- sd(res[,i])
+  koef[2,i] <- median(res[,i])
+  koef[3,i] <- mean(res[,i])
+  
+  
+
+}
+  pander::pander(koef,caption = "Показатели центра распределения", style = "simple", digits = 4)
+```
+
+```{r}
+Result <- cbind(Result, res)
+```
+
+Из таблицы видно, что наименьшей оценкой обладает IPA , то есть это наиболее идеальный покупательский вариант
+
+```{r}
+#пункт 5
+various <- as.data.frame(matrix(nrow  = 3, ncol = 1))
+colnames(various) <- c("Значение оценки дисперсии")
+rownames(various) <- c("Обычная дисперсия", "Среднегрупповая дисперсия", "Межгрупповая дисперсия")
+
+#делаем пункт 5.случайный отбор
+df_random <- Result[sample(nrow(Result), 600, replace = TRUE), ]
+
+various[1,1] <- var(df_random[35+4])
+
+pander::pander(various,caption = "Показатели центра распределения", style = "simple", digits = 4)
+
+
+
+```
+
+```{r}
+#типический отбор
+variances <- numeric(8)
+numbers <- numeric(8)
+
+age_groups <- c("Pre.Senior", "Senior", "Middle.Aged", "Young.Adult")
+genders <- c("Male", "Female")
+
+
+group_index <- 1
+for (age in age_groups) {
+  for (gender in genders) {
+    
+    # Фильтруем данные по возрастной группе и полу
+    group_data <- df_random[df_random$group_age == age & df_random$Пол == gender, ]
+    
+    variances[group_index] <- var(group_data[,39])
+    numbers[group_index] <- nrow(group_data)
+    
+    group_index <- group_index + 1
+  }
+}
+sum_various = 0
+for(i in 1:8){
+  sum_various <- sum_various +variances[i]*numbers[i]
+}
+various[2,1] <- sum_various/600
+
+pander::pander(various,caption = "Показатели центра распределения", style = "simple", digits = 4)
+
+```
+
+```{r}
+#серийный отбор
+metro_number <- table(Result$Станция)
+average_rows_per_city <- mean(metro_number)
+#в среднем 52.8 человека на станцию. Тогда возьмём 11 случайных станций для серийного отбора
+
+unique_stations <- unique(Result$Станция) 
+
+random_stations <- sample(unique_stations, 11, replace = FALSE)
+
+df_serial <- Result[Result$Станция %in% random_stations, ]
+
+```
+
+```{r}
+
+group_means <- tapply(df_serial[,39], df_serial$Станция, mean)
+mean_serial <- mean(df_serial[,39])
+station_counts <- table(df_serial$Станция)
+sum_differ <- 0
+for(i in 1:11){
+  sum_differ <- sum_differ + (group_means[i] - mean_serial)^2
+}
+various[3,1] <- sum_differ/11
+pander::pander(various,caption = "Показатели центра распределения", style = "simple", digits = 4)
+```
+
+```{r}
+#пункт 6 для случайной
+winer <- as.data.frame(matrix(0, nrow  = 7, ncol = 4))
+colnames(winer) <- c("Oxota", "Guiness", "Bud", "IPA")
+rownames(winer) <- c("Случайный бесповторный", "Случайный повторный
+", "Механический бесповторный", "Серийная бесповторная", "Серийная повторная", "Типическая бесповторная", "Типическая повторная")
+
+#случайный безповторный
+for(i in 1:1000){
+  df_random <- Result[sample(nrow(Result), 600, replace = FALSE), ]
+  num = 0
+  min_mean = 100000
+  for(j in 1:4){
+    if(mean(df_random[,35+j])<min_mean){
+      min_mean <- mean(df_random[,35+j])
+      num = j
+    }
+    
+  }
+  winer[1,num] <- winer[1,num]+1
+}
+
+pander::pander(winer,caption = "Показатели центра распределения", style = "simple", digits = 4)
+```
+
+```{r}
+#пункт 6 для случайной повторной
+for(i in 1:1000){
+  df_random <- Result[sample(nrow(Result), 600, replace = TRUE), ]
+  num = 0
+  min_mean = 100000
+  for(j in 1:4){
+    if(mean(df_random[,35+j])<min_mean){
+      min_mean <- mean(df_random[,35+j])
+      num = j
+    }
+    
+  }
+  winer[2,num] <- winer[2,num]+1
+}
+```
+
+```{r}
+#пункт 6 для механической
+for(i in 1:1000){
+  index <- seq(1+i*10, by = 4, length.out = 600)
+  df_mechanic <- Result[index, ]
+  num = 0
+  min_mean = 100000
+  for(j in 1:4){
+    if(mean(df_mechanic[,35+j])<min_mean){
+      min_mean <- mean(df_mechanic[,35+j])
+      num = j
+    }
+    
+  }
+  winer[3,num] <- winer[3,num]+1
+}
+
+pander::pander(winer,caption = "Показатели центра распределения", style = "simple", digits = 4)
+```
+
+```{r}
+#для серийной безповторной
+for(i in 1:1000){
+  random_stations <- sample(unique_stations, 11, replace = FALSE)
+  
+
+  df_serial <- Result[Result$Станция %in% random_stations, ]
+  num = 0
+  min_mean = 100000
+  for(j in 1:4){
+    if(mean(df_serial[,35+j])<min_mean){
+      min_mean <- mean(df_serial[,35+j])
+      num = j
+    }
+    
+  }
+  winer[4,num] <- winer[4,num]+1
+}
+```
+
+```{r}
+#для серийной повторной
+for(i in 1:1000){
+  random_stations <- sample(unique_stations, 11, replace = TRUE)
+  
+
+  df_serial <- Result[Result$Станция %in% random_stations, ]
+  num = 0
+  min_mean = 100000
+  for(j in 1:4){
+    if(mean(df_serial[,35+j])<min_mean){
+      min_mean <- mean(df_serial[,35+j])
+      num = j
+    }
+    
+  }
+  winer[5,num] <- winer[5,num]+1
+}
+```
+
+```{r}
+#коэфициенты для типического отбора
+k <- 600
+array <- c(floor(nrow(Result[Result$Пол =="Male" & Result$group_age == "Senior", ])*k/15000))
+array <- c(array, floor(nrow(Result[Result$Пол =="Male" & Result$group_age == "Pre.Senior", ])*k/15000))
+array <- c(array,floor(nrow(Result[Result$Пол =="Male" & Result$group_age == "Young.Adult", ])*k/15000))
+array <- c(array,floor(nrow(Result[Result$Пол =="Male" & Result$group_age == "Middle.Aged", ])*k/15000))
+array <- c(array,floor(nrow(Result[Result$Пол =="Female" & Result$group_age == "Senior", ])*k/15000))
+array <- c(array,floor(nrow(Result[Result$Пол =="Female" & Result$group_age == "Pre.Senior", ])*k/15000))
+array <- c(array,floor(nrow(Result[Result$Пол =="Female" & Result$group_age == "Young.Adult", ])*k/15000))
+array <- c(array,floor(nrow(Result[Result$Пол =="Female" & Result$group_age == "Middle.Aged", ])*k/15000))
+```
+
+```{r}
+#пункт 6 для типической безповторной выборки
+for(i in 1:1000){
+  df_tipical <- Result[0,]
+  group_index <- 1
+  for (age in age_groups) {
+  for (gender in genders) {
+    
+    # Фильтруем данные по возрастной группе и полу
+    group_data <- Result[Result$group_age == age & Result$Пол == gender, ]
+    
+    # Выбираем нужное количество строк для данной группы
+    sampled_data <- group_data[sample(1:nrow(group_data), size = array[group_index], replace = FALSE), ]
+    
+    # Переход к следующей группе
+    group_index <- group_index + 1
+    
+    df_tipical <- rbind(df_tipical, sampled_data)
+    
+  }
+}
+  num = 0
+  min_mean = 100000
+  for(j in 1:4){
+    if(mean(df_tipical[,35+j])<min_mean){
+      min_mean <- mean(df_tipical[,35+j])
+      num = j
+    }
+    
+  }
+  winer[6,num] <- winer[6,num]+1
+}
+
+```
+
+```{r}
+#пункт 6 для типической повторной выборки
+for(i in 1:1000){
+  df_tipical <- Result[0,]
+  group_index <- 1
+  for (age in age_groups) {
+  for (gender in genders) {
+    
+    # Фильтруем данные по возрастной группе и полу
+    group_data <- Result[Result$group_age == age & Result$Пол == gender, ]
+    
+    # Выбираем нужное количество строк для данной группы
+    sampled_data <- group_data[sample(1:nrow(group_data), size = array[group_index], replace = TRUE), ]
+    
+    # Переход к следующей группе
+    group_index <- group_index + 1
+    
+    df_tipical <- rbind(df_tipical, sampled_data)
+    
+  }
+}
+  num = 0
+  min_mean = 100000
+  for(j in 1:4){
+    if(mean(df_tipical[,35+j])<min_mean){
+      min_mean <- mean(df_tipical[,35+j])
+      num = j
+    }
+    
+  }
+  winer[7,num] <- winer[7,num]+1
+}
+
+pander::pander(winer,caption = "Показатели центра распределения", style = "simple", digits = 4)
+```
+
+```{r}
+#пункт 7. найдём в таблице значение для a = 0.05 n = 600
+p <- 1 - 0.05/2
+
+# Степени свободы
+df <- 599
+
+# Вычисление квантиля
+t_quantile <- qt(p, df)
+
+# Печать результата
+print(t_quantile)
+```
+
+```{r}
+#пункт 8 нахождение предельной ошибки среднего 
+#построим таблицу с оценками SEM или eSEM для каждого типа отбора
+SEM <- as.data.frame(matrix(nrow  = 7, ncol = 1))
+colnames(SEM) <- c("Значение SEM/eSEM для типа отбора")
+rownames(SEM) <- c("Случайный бесповторный", "Случайный повторный
+", "Механический бесповторный", "Серийная бесповторная", "Серийная повторная", "Типическая бесповторная", "Типическая повторная")
+n = 600
+N=15000
+r=11
+R=284
+SEM[1,1] <- (sqrt(various[1,1])/sqrt(600))*sqrt((N-n)/N)
+SEM[2,1] <- sqrt(various[1,1])/sqrt(600)
+SEM[3,1] <-SEM[1,1]
+SEM[4,1] <- sqrt((various[3,1]/r)*(1 - r/R))
+SEM[5,1] <-sqrt(various[3,1]/r)
+SEM[6,1] <-sqrt((various[2,1]/n)*(1 - n/N))
+SEM[7,1] <-sqrt(various[2,1]/n)
+  
+pander::pander(SEM,caption = "Показатели центра распределения", style = "simple", digits = 4)
+```
+
+```{r}
+#теперь найдём предельную ошибку среднего мю при t = 1.964
+t <- 1.964
+predel_oshibki <- SEM
+for(i in 1:7){
+
+  predel_oshibki[i,1] <- SEM[i,1]*t/2
+}
+pander::pander(predel_oshibki,caption = "Показатели центра распределения", style = "simple", digits = 4)
+```
+
+```{r}
+#пункт 10
+punkt10 <- as.data.frame(matrix(nrow  = 7, ncol = 1))
+colnames(punkt10) <- c("Значение n со звездой")
+rownames(punkt10) <- c("Случайный бесповторный", "Случайный повторный
+", "Механический бесповторный", "Серийная бесповторная", "Серийная повторная", "Типическая бесповторная", "Типическая повторная")
+
+```
+
+```{r}
+punkt10[1,1] <- (t^2 * various[1,1]*N)/(predel_oshibki[1,1]^2*N + t^2*various[1,1])
+punkt10[2,1] <- (t^2 * various[1,1])/(predel_oshibki[2,1]^2 )
+punkt10[3,1] <- punkt10[1,1]
+punkt10[4,1] <-(t^2 * various[3,1]*R)/(predel_oshibki[4,1]^2*R + t^2*various[3,1])
+punkt10[5,1] <-(t^2 * various[3,1])/(predel_oshibki[5,1]^2 )
+punkt10[6,1] <-(t^2 * various[2,1]*N)/(predel_oshibki[6,1]^2*N + t^2*various[2,1])
+punkt10[7,1] <-(t^2 * various[2,1])/(predel_oshibki[7,1]^2 )
+pander::pander(punkt10,caption = "Показатели центра распределения", style = "simple", digits = 4)
+```
+
+```{r}
+#заранне для 15 пункта создадим таблицу и будем её заполнять по очереди. первая строка - значение оценок для ген совокупности, дальше разность значений ген. совокупность - выборочная совокупность
+differ <- as.data.frame(matrix(nrow  = 8, ncol = 4))
+colnames(differ) <- c("Oxota", "Guiness", "Bud", "IPA")
+rownames(differ) <- c("Значение генеральной выборки","Случайный бесповторный", "Случайный повторный
+", "Механический бесповторный", "Серийная бесповторная", "Серийная повторная", "Типическая бесповторная", "Типическая повторная")
+
+
+#сделаем таблицу с победителями для каждого отбора
+winners <- as.data.frame(matrix(nrow  = 7, ncol = 4))
+colnames(winners) <- c("Oxota", "Guiness", "Bud", "IPA")
+rownames(winners) <- c("Случайный бесповторный", "Случайный повторный
+", "Механический бесповторный", "Серийная бесповторная", "Серийная повторная", "Типическая бесповторная", "Типическая повторная")
+
+
+differ[1,] <- koef[3,]
+```
+
+```{r}
+#пунтк 11
+punkt11 <- as.data.frame(matrix(0,nrow  = 4, ncol = 4))
+colnames(punkt11) <- c("Oxota", "Guiness", "Bud", "IPA")
+rownames(punkt11) <- c("Количество побед", "Усреднённые оценки", "Усреднённое стандартное отклонение", "Усреднённая медиана")
+
+marks <- matrix(0, nrow = 1000, ncol = 4)
+sd <- matrix(0, nrow = 1000, ncol = 4)
+median <- matrix(0, nrow = 1000, ncol = 4)
+n <- floor(punkt10[1,1])
+for(i in 1:1000){
+  df_random <- Result[sample(nrow(Result), n, replace = FALSE), ]
+  num = 0
+  min_mean = 100000
+  for(j in 1:4){
+    if(mean(df_random[,35+j])<min_mean){
+      min_mean <- mean(df_random[,35+j])
+      num = j
+      
+      
+      
+    }
+    marks[i,j] <- mean(df_random[,35+j])
+    sd[i,j] <- sd(df_random[,35+j])
+    median[i,j] <- median(df_random[,35+j])
+    
+  }
+  
+  punkt11[1,num] <- punkt11[1,num]+1
+}
+
+for(i in 1:4){
+  punkt11[2,i] <- mean(marks[, i])
+  punkt11[3,i] <- mean(sd[, i])
+  punkt11[4,i] <- mean(median[, i])
+  winners[1,i] <- punkt11[1,i]
+}
+
+for(i in 1:4){
+  differ[2,i] <- koef[3,i] - punkt11[2,i]
+}
+
+pander::pander(punkt11,caption = "Показатели центра распределения", style = "simple", digits = 4)
+```
+
+```{r}
+punkt11 <- as.data.frame(matrix(0,nrow  = 4, ncol = 4))
+colnames(punkt11) <- c("Oxota", "Guiness", "Bud", "IPA")
+rownames(punkt11) <- c("Количество побед", "Усреднённые оценки", "Усреднённое стандартное отклонение", "Усреднённая медиана")
+
+marks <- matrix(0, nrow = 1000, ncol = 4)
+sd <- matrix(0, nrow = 1000, ncol = 4)
+median <- matrix(0, nrow = 1000, ncol = 4)
+n <- floor(punkt10[2,1])
+for(i in 1:1000){
+  df_random <- Result[sample(nrow(Result), n, replace = TRUE), ]
+  num = 0
+  min_mean = 100000
+  for(j in 1:4){
+    if(mean(df_random[,35+j])<min_mean){
+      min_mean <- mean(df_random[,35+j])
+      num = j
+      
+      
+      
+    }
+    marks[i,j] <- mean(df_random[,35+j])
+    sd[i,j] <- sd(df_random[,35+j])
+    median[i,j] <- median(df_random[,35+j])
+    
+  }
+  
+  punkt11[1,num] <- punkt11[1,num]+1
+}
+
+for(i in 1:4){
+  punkt11[2,i] <- mean(marks[, i])
+  punkt11[3,i] <- mean(sd[, i])
+  punkt11[4,i] <- mean(median[, i])
+  winners[2,i] <- punkt11[1,i]
+}
+for(i in 1:4){
+  differ[3,i] <- koef[3,i] - punkt11[2,i]
+}
+pander::pander(punkt11,caption = "Показатели центра распределения", style = "simple", digits = 4)
+```
+
+```{r}
+# 11 пункт для механической безповторной
+punkt11 <- as.data.frame(matrix(0,nrow  = 4, ncol = 4))
+colnames(punkt11) <- c("Oxota", "Guiness", "Bud", "IPA")
+rownames(punkt11) <- c("Количество побед", "Усреднённые оценки", "Усреднённое стандартное отклонение", "Усреднённая медиана")
+
+marks <- matrix(0, nrow = 1000, ncol = 4)
+sd <- matrix(0, nrow = 1000, ncol = 4)
+median <- matrix(0, nrow = 1000, ncol = 4)
+n <- floor(punkt10[3,1])
+for(i in 1:1000){
+  index <- seq(1+i*5, by = 4, length.out = n)
+  df_mechanic <- Result[index, ]
+  num = 0
+  min_mean = 100000
+  for(j in 1:4){
+    if(mean(df_mechanic[,35+j])<min_mean){
+      min_mean <- mean(df_mechanic[,35+j])
+      num = j
+      
+      
+      
+    }
+    marks[i,j] <- mean(df_mechanic[,35+j])
+    sd[i,j] <- sd(df_mechanic[,35+j])
+    median[i,j] <- median(df_mechanic[,35+j])
+    
+  }
+  
+  punkt11[1,num] <- punkt11[1,num]+1
+}
+
+for(i in 1:4){
+  punkt11[2,i] <- mean(marks[, i])
+  punkt11[3,i] <- mean(sd[, i])
+  punkt11[4,i] <- mean(median[, i])
+  winners[3,i] <- punkt11[1,i]
+}
+for(i in 1:4){
+  differ[4,i] <- koef[3,i] - punkt11[2,i]
+}
+
+pander::pander(punkt11,caption = "Показатели центра распределения", style = "simple", digits = 4)
+```
+
+```{r}
+# 11 пункт для серийной безповторной
+punkt11 <- as.data.frame(matrix(0,nrow  = 4, ncol = 4))
+colnames(punkt11) <- c("Oxota", "Guiness", "Bud", "IPA")
+rownames(punkt11) <- c("Количество побед", "Усреднённые оценки", "Усреднённое стандартное отклонение", "Усреднённая медиана")
+
+marks <- matrix(0, nrow = 1000, ncol = 4)
+sd <- matrix(0, nrow = 1000, ncol = 4)
+median <- matrix(0, nrow = 1000, ncol = 4)
+k <- floor(punkt10[4,1])
+for(i in 1:1000){
+  random_stations <- sample(unique_stations, k, replace = FALSE)
+
+  df_serial <- Result[Result$Станция %in% random_stations, ]
+  num = 0
+  min_mean = 100000
+  for(j in 1:4){
+    if(mean(df_serial[,35+j])<min_mean){
+      min_mean <- mean(df_serial[,35+j])
+      num = j
+      
+      
+      
+    }
+    marks[i,j] <- mean(df_serial[,35+j])
+    sd[i,j] <- sd(df_serial[,35+j])
+    median[i,j] <- median(df_serial[,35+j])
+    
+  }
+  
+  punkt11[1,num] <- punkt11[1,num]+1
+}
+
+for(i in 1:4){
+  punkt11[2,i] <- mean(marks[, i])
+  punkt11[3,i] <- mean(sd[, i])
+  punkt11[4,i] <- mean(median[, i])
+  winners[4,i] <- punkt11[1,i]
+}
+for(i in 1:4){
+  differ[5,i] <- koef[3,i] - punkt11[2,i]
+}
+
+pander::pander(punkt11,caption = "Показатели центра распределения", style = "simple", digits = 4)
+```
+
+```{r}
+# 11 пункт для серийной повторной
+punkt11 <- as.data.frame(matrix(0,nrow  = 4, ncol = 4))
+colnames(punkt11) <- c("Oxota", "Guiness", "Bud", "IPA")
+rownames(punkt11) <- c("Количество побед", "Усреднённые оценки", "Усреднённое стандартное отклонение", "Усреднённая медиана")
+
+marks <- matrix(0, nrow = 1000, ncol = 4)
+sd <- matrix(0, nrow = 1000, ncol = 4)
+median <- matrix(0, nrow = 1000, ncol = 4)
+k <- floor(punkt10[5,1])
+for(i in 1:1000){
+  random_stations <- sample(unique_stations, k, replace = TRUE)
+
+  df_serial <- Result[Result$Станция %in% random_stations, ]
+  num = 0
+  min_mean = 100000
+  for(j in 1:4){
+    if(mean(df_serial[,35+j])<min_mean){
+      min_mean <- mean(df_serial[,35+j])
+      num = j
+      
+      
+      
+    }
+    marks[i,j] <- mean(df_serial[,35+j])
+    sd[i,j] <- sd(df_serial[,35+j])
+    median[i,j] <- median(df_serial[,35+j])
+    
+  }
+  
+  punkt11[1,num] <- punkt11[1,num]+1
+}
+
+for(i in 1:4){
+  punkt11[2,i] <- mean(marks[, i])
+  punkt11[3,i] <- mean(sd[, i])
+  punkt11[4,i] <- mean(median[, i])
+  winners[5,i] <- punkt11[1,i]
+}
+for(i in 1:4){
+  differ[6,i] <- koef[3,i] - punkt11[2,i]
+}
+pander::pander(punkt11,caption = "Показатели центра распределения", style = "simple", digits = 4)
+```
+
+```{r}
+#коэфы для типического отбора
+k <- floor(punkt10[6,1])
+array <- c(floor(nrow(Result[Result$Пол =="Male" & Result$group_age == "Senior", ])*k/15000))
+array <- c(array, floor(nrow(Result[Result$Пол =="Male" & Result$group_age == "Pre.Senior", ])*k/15000))
+array <- c(array,floor(nrow(Result[Result$Пол =="Male" & Result$group_age == "Young.Adult", ])*k/15000))
+array <- c(array,floor(nrow(Result[Result$Пол =="Male" & Result$group_age == "Middle.Aged", ])*k/15000))
+array <- c(array,floor(nrow(Result[Result$Пол =="Female" & Result$group_age == "Senior", ])*k/15000))
+array <- c(array,floor(nrow(Result[Result$Пол =="Female" & Result$group_age == "Pre.Senior", ])*k/15000))
+array <- c(array,floor(nrow(Result[Result$Пол =="Female" & Result$group_age == "Young.Adult", ])*k/15000))
+array <- c(array,floor(nrow(Result[Result$Пол =="Female" & Result$group_age == "Middle.Aged", ])*k/15000))
+```
+
+```{r}
+# 11 пункт для типической безповторной
+punkt11 <- as.data.frame(matrix(0,nrow  = 4, ncol = 4))
+colnames(punkt11) <- c("Oxota", "Guiness", "Bud", "IPA")
+rownames(punkt11) <- c("Количество побед", "Усреднённые оценки", "Усреднённое стандартное отклонение", "Усреднённая медиана")
+
+marks <- matrix(0, nrow = 1000, ncol = 4)
+sd <- matrix(0, nrow = 1000, ncol = 4)
+median <- matrix(0, nrow = 1000, ncol = 4)
+
+for(i in 1:1000){
+  df_tipical <- Result[0,]
+  group_index <- 1
+  for (age in age_groups) {
+  for (gender in genders) {
+    
+    # Фильтруем данные по возрастной группе и полу
+    group_data <- Result[Result$group_age == age & Result$Пол == gender, ]
+    
+    # Выбираем нужное количество строк для данной группы
+    sampled_data <- group_data[sample(1:nrow(group_data), size = array[group_index], replace = FALSE), ]
+    
+    # Переход к следующей группе
+    group_index <- group_index + 1
+    
+    df_tipical <- rbind(df_tipical, sampled_data)
+    
+  }
+}
+  num = 0
+  min_mean = 100000
+  for(j in 1:4){
+    if(mean(df_tipical[,35+j])<min_mean){
+      min_mean <- mean(df_tipical[,35+j])
+      num = j
+      
+      
+      
+    }
+    marks[i,j] <- mean(df_tipical[,35+j])
+    sd[i,j] <- sd(df_tipical[,35+j])
+    median[i,j] <- median(df_tipical[,35+j])
+    
+  }
+  
+  punkt11[1,num] <- punkt11[1,num]+1
+}
+
+for(i in 1:4){
+  punkt11[2,i] <- mean(marks[, i])
+  punkt11[3,i] <- mean(sd[, i])
+  punkt11[4,i] <- mean(median[, i])
+  winners[6,i] <- punkt11[1,i]
+}
+
+for(i in 1:4){
+  differ[7,i] <- koef[3,i] - punkt11[2,i]
+}
+
+pander::pander(punkt11,caption = "Показатели центра распределения", style = "simple", digits = 4)
+```
+
+```{r}
+k <- floor(punkt10[7,1])
+array <- c(floor(nrow(Result[Result$Пол =="Male" & Result$group_age == "Senior", ])*k/15000))
+array <- c(array, floor(nrow(Result[Result$Пол =="Male" & Result$group_age == "Pre.Senior", ])*k/15000))
+array <- c(array,floor(nrow(Result[Result$Пол =="Male" & Result$group_age == "Young.Adult", ])*k/15000))
+array <- c(array,floor(nrow(Result[Result$Пол =="Male" & Result$group_age == "Middle.Aged", ])*k/15000))
+array <- c(array,floor(nrow(Result[Result$Пол =="Female" & Result$group_age == "Senior", ])*k/15000))
+array <- c(array,floor(nrow(Result[Result$Пол =="Female" & Result$group_age == "Pre.Senior", ])*k/15000))
+array <- c(array,floor(nrow(Result[Result$Пол =="Female" & Result$group_age == "Young.Adult", ])*k/15000))
+array <- c(array,floor(nrow(Result[Result$Пол =="Female" & Result$group_age == "Middle.Aged", ])*k/15000))
+```
+
+```{r}
+# 11 пункт для типической повторной
+punkt11 <- as.data.frame(matrix(0,nrow  = 4, ncol = 4))
+colnames(punkt11) <- c("Oxota", "Guiness", "Bud", "IPA")
+rownames(punkt11) <- c("Количество побед", "Усреднённые оценки", "Усреднённое стандартное отклонение", "Усреднённая медиана")
+
+marks <- matrix(0, nrow = 1000, ncol = 4)
+sd <- matrix(0, nrow = 1000, ncol = 4)
+median <- matrix(0, nrow = 1000, ncol = 4)
+
+for(i in 1:1000){
+  df_tipical <- Result[0,]
+  group_index <- 1
+  for (age in age_groups) {
+  for (gender in genders) {
+    
+    # Фильтруем данные по возрастной группе и полу
+    group_data <- Result[Result$group_age == age & Result$Пол == gender, ]
+    
+    # Выбираем нужное количество строк для данной группы
+    sampled_data <- group_data[sample(1:nrow(group_data), size = array[group_index], replace = TRUE), ]
+    
+    # Переход к следующей группе
+    group_index <- group_index + 1
+    
+    df_tipical <- rbind(df_tipical, sampled_data)
+    
+  }
+}
+  num = 0
+  min_mean = 100000
+  for(j in 1:4){
+    if(mean(df_tipical[,35+j])<min_mean){
+      min_mean <- mean(df_tipical[,35+j])
+      num = j
+      
+      
+      
+    }
+    marks[i,j] <- mean(df_tipical[,35+j])
+    sd[i,j] <- sd(df_tipical[,35+j])
+    median[i,j] <- median(df_tipical[,35+j])
+    
+  }
+  
+  punkt11[1,num] <- punkt11[1,num]+1
+}
+
+for(i in 1:4){
+  punkt11[2,i] <- mean(marks[, i])
+  punkt11[3,i] <- mean(sd[, i])
+  punkt11[4,i] <- mean(median[, i])
+  winners[7,i] <- punkt11[1,i]
+}
+
+for(i in 1:4){
+  differ[8,i] <- koef[3,i] - punkt11[2,i]
+}
+
+pander::pander(punkt11,caption = "Показатели центра распределения", style = "simple", digits = 4)
+```
+
+```{r}
+#пункт 15
+pander::pander(winners,caption = "Победители", style = "simple")
+pander::pander(differ,caption = "Сопоставление оценок и значений ген совокупности", style = "simple")
+
+```
+
+```{r}
+compare <- as.data.frame(matrix(nrow  = 7, ncol = 1))
+colnames(compare) <- c("Оценка близости к значениями генеральной совокупности")
+rownames(compare) <- c("Случайный бесповторный", "Случайный повторный
+", "Механический бесповторный", "Серийная бесповторная", "Серийная повторная", "Типическая бесповторная", "Типическая повторная")
+for(i in 2:8){
+  compare[i-1,1] <- mean(abs(as.numeric(differ[i,])))
+}
+pander::pander(compare,caption = "Победители", style = "simple")
+```
+
+```{r}
+compare <- as.data.frame(matrix(nrow  = 7, ncol = 3))
+colnames(compare) <- c("Ранг близости к ген. совокупности","Ранг качества определения победителя", "Суммарный ранг" )
+rownames(compare) <- c("Случайный бесповторный", "Случайный повторный
+", "Механический бесповторный", "Серийная бесповторная", "Серийная повторная", "Типическая бесповторная", "Типическая повторная")
+pander::pander(compare,caption = "Победители", style = "simple")
+```

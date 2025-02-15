@@ -1,0 +1,145 @@
+---
+title: "Лабораторная 1"
+author: "Мишнёв В.П."
+date: "2024-10-04"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(DescTools)
+library(fmsb)
+```
+
+```{r}
+load("C:\\Users\\Владислав\\Desktop\\код\\R\\Вариант33_Б22-901_Мишнев.RData")
+df <- Result
+zeros <- rep(0, 100)
+res <- data.frame(ozon = zeros,
+                 Yandex = zeros,
+                 WB = zeros,
+                 Cber = zeros)
+for(i in 1:6){
+  df[i+12] = abs(df[i]-df[i+12])*df[i+6]
+  df[i+18] = abs(df[i]-df[i+18])*df[i+6]##идеальное значение - значение для продукта
+  df[i+24] = abs(df[i]-df[i+24])*df[i+6]
+  df[i+30] = abs(df[i]-df[i+30])*df[i+6]
+}
+
+for(i in 1:6){
+  res[1] <- res[1] + df[i+12]
+  res[2] <- res[2] + df[i+18]
+  res[3] <- res[3] + df[i+24]
+  res[4] <- res[4] + df[i+30]
+} 
+```
+
+Представим показатели центра распредления(мода, медиана, среднее) для каждой из альтернатив
+
+```{r,fig.height = 1, fig.width=2}
+
+koef <- as.data.frame(matrix(nrow  = 4, ncol = 4))
+colnames(koef) <- c("Ozon", "Яндекс маркет", "Wildberries", "Сбер мегамаркет")
+rownames(koef) <- c("Мода", "Медиана", "Среднее", "Среднее усечённое")
+for (i in 1:4){
+  koef[1,i] <- min(Mode(res[,i]))
+  koef[2,i] <- median(res[,i])
+  koef[3,i] <- mean(res[,i])
+  koef[4,i] <- mean(res[,i], trim = 0.1)
+  
+
+}
+  pander::pander(koef,caption = "Показатели центра распределения", style = "simple", digits = 4)
+```
+
+```{r}
+koef <- as.data.frame(matrix(nrow  = 10, ncol = 4))
+colnames(koef) <- c("Ozon", "Яндекс маркет", "Wildberries", "Сбер мегамаркет")
+rownames(koef) <- c("Дисперсия","Стандартное отклонение" ,"Коэф. вариации", "Размах", "Ассиметрия", "Эксцесс","IQR", "Нижний квартиль", "Верхний квартиль", "Межквартильный коэф")
+for (i in 1:4){
+  koef[1,i] <- var(res[,i])
+  koef[2,i] <- sd(res[,i])
+  koef[3,i] <- (koef[2,i]/abs(mean(res[,i]))) *100
+  koef[4,i] <- max(res[, i])-min(res[, i])
+  koef[5,i] <- Skew(res[, i])
+  koef[6,i] <- Kurt(res[,i])
+  koef[7,i] <- quantile(res[,i], probs = 0.75) - quantile(res[,i], probs = 0.25)
+  koef[8,i] <- quantile(res[,i], probs = 0.25)
+  koef[9,i] <- quantile(res[,i], probs = 0.75)
+  koef[10,i] <- koef[9,i]/koef[8,i]
+  
+
+}
+pander::pander(koef,caption = "Показатели характера распределения", style = "simple", digits = 2)##можно так?
+```
+
+```{r}
+koef <- as.data.frame(matrix(nrow  = 6, ncol = 5))
+colnames(koef) <- c("Мода","Медиана","Среднее","Среднее усечённое","Ст отклонение")
+rownames(koef) <-  c("Ассортимент", "Интерфейс", "Безопасность" ,"Отзывы", "Техподдержка","Логистика")
+for (i in 1:6){
+  koef[i,1] <- min(Mode(df[,i]))
+  koef[i,2] <- median(df[,i])
+  koef[i,3] <- mean(df[,i])
+  koef[i,4] <- mean(df[,i], trim = 0.1)
+  koef[i,5] <- sd(df[,i])
+  
+
+}
+pander::pander(koef,caption = "Показатели идеальных значений",style = "simple", digits = 2)##можно так?
+```
+
+```{r,fig.height = 5, fig.width=12}
+rownames(koef) <- c("Ассортимент", "Интерфейс", "Безопасность платежей" ,"Отзывы и рейтинги", "Техподдержка","Логистика")
+barplot(height = as.matrix(koef), 
+        beside = TRUE,
+        main = "Столбчатая диаграмма для всех показателей", 
+        ylab = "Значение",
+        col = c("pink", "lightgreen", "grey", "gold", "lightcoral","blue"), 
+        border = "black")
+
+legend("topright", 
+       legend = rownames(koef), 
+       fill = c("pink", "lightgreen", "grey", "gold", "lightcoral","blue"), 
+       title = "Номер ид значения")
+```
+
+```{r,fig.height = 5, fig.width=10}
+koef <- as.data.frame(matrix(nrow  = 5, ncol = 6))
+
+rownames(koef) <-  c("Мода","Медиана","Среднее","Среднее усечённое","Ст отклонение")
+for (i in 1:6){
+  koef[1,i] <- min(Mode(df[,i]))
+  koef[2,i] <- median(df[,i])
+  koef[3,i] <- mean(df[,i])
+  koef[4,i] <- mean(df[,i], trim = 0.1)
+  koef[5,i] <- sd(df[,i])
+  
+
+}
+
+koef <- rbind(rep(8,6) , rep(0,6) , koef)
+names(koef) <- c("Ассортимент", "Интерфейс", "Безопасность платежей" ,"Отзывы и рейтинги", "Техподдержка","Логистика")
+# Построение лепестковой диаграммы
+radarchart(koef,
+           pcol = c("pink", "lightgreen", "grey", "gold", "lightcoral"), plwd = 1, plty = 1,
+           title = "Лепестковая диаграмма идеальных показателей")
+legend("topright", 
+       legend = rownames(koef[3:7,]), 
+       fill = c("pink", "lightgreen", "grey", "gold", "lightcoral"), 
+       title = "Номер ид значения")
+```
+
+```{r}
+
+plot(x = sort(res$ozon, decreasing = TRUE), type  = "l", lwd = 2, col = "blue", ylab = "Оценка", xlab = "Номер респондента")
+lines(x = sort(res$Yandex, decreasing = TRUE), type  = "l", lwd = 2, col = "#FFD700")
+lines(x = sort(res$WB, decreasing = TRUE), type  = "l", lwd = 2, col = "purple")
+lines(x = sort(res$Cber, decreasing = TRUE), type  = "l", lwd = 2, col = "green")
+legend(x = "topright", legend = c("Озон", "Яндекс маркет", "Вайлдберис", "Сбер Мегамаркет"), col = c("blue", "#FFD700", "purple", "green"),lty = c(1,1,1,1))
+```
+
+```{r, fig.height = 4, fig.width=8}
+colnames(res) <- c("Озон", "Яндекс маркет", "Вайлдберис", "Сбер Мегамаркет")
+boxplot(x = res)
+```
